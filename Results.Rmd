@@ -4,8 +4,6 @@ date: "`r Sys.Date()`"
 output: 
   word_document:
     toc: true
-    toc_depth: 3
-    number_sections: true
     reference_docx: template.docx
     
 
@@ -603,7 +601,7 @@ data %>%
           .data[[crp_col]] < 100,
         )
       
-      cat("После визита V", v, " осталось пациентов: ", nrow(data), "\n")
+      #cat("После визита V", v, " осталось пациентов: ", nrow(data), "\n")
     }
   }
   return(data)

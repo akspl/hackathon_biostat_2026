@@ -1,16 +1,19 @@
 ---
-title: "Хакатон 2026"
-author: "Oksana Plastinina, Anna Kalinina"
+title: "Проспективное, одноцентровое, открытое, рандомизированное, клиническое исследование в параллельных группах, по сравнительной оценке, эффективности и безопасности биологически активной добавки “Куркумин НЕО”, 100 мг для перорального применения в сравнении со стандартной терапией “Метотрексат”, 7,5 мг для лечения при ревматоидном артрите (РА)."
 date: "`r Sys.Date()`"
 output: 
-  html_document:
-    number_sections: true
-    code_folding: hide
+  word_document:
     toc: true
-    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    reference_docx: template.docx
+    
+
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE)
 ```
 
 ```{r}
@@ -351,7 +354,7 @@ print_numeric_flextable <- function(df_numeric_formatted, data_raw) {
     font(fontname = "Arial", part = "all") %>%
     border_outer(border = border_all) %>%
     border_inner(border = border_all) %>%
-    
+    set_table_properties(width = 1, layout = "autofit") %>% 
     autofit()
 }
 
@@ -508,7 +511,7 @@ print_categorical_flextable <- function(df_categorical_formatted, data_raw) {
     font(fontname = "Arial", part = "all") %>%
     border_outer(border = border_all) %>%
     border_inner(border = border_all) %>%
-    
+    set_table_properties(width = 1, layout = "autofit") %>% 
     autofit()
 }
 
@@ -549,16 +552,18 @@ data <- data %>%
   )
 ```
 
-# Оценка данных
+
 
 ```{r}
-skimr::skim(data)
+# Оценка данных
+# skimr::skim(data)
 ```
 
 
-# Очистка данных
+
 
 ```{r}
+# Очистка данных
 # проверка на соответствие критериям включения и невключения
 data %>% 
   filter(V0_DEM_AGE <= 65 & V0_DEM_AGE >= 18) %>% 
@@ -600,7 +605,7 @@ data %>%
   }
   return(data)
 }
-data_ready <- check_visits(data_cleaned)
+# data_ready <- check_visits(data_cleaned)
 
   
 ```
@@ -648,6 +653,12 @@ data_categorical <- data %>%
 
 
 ```
+
+# Програмное обеспечение 
+
+Анализ данных выполнен в программе RStudio версии `r rstudioapi::versionInfo()$version` с использованием языка `r version$version.string`
+
+# Статистический анализ
 
 ## Исходное состояние
 

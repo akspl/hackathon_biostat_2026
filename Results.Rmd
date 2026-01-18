@@ -361,19 +361,18 @@ print_numeric_flextable <- function(df_numeric_formatted, data_raw) {
 compare_categorical_by_visit <- function(long_df) {
 
   pvals <- long_df %>%
-    dplyr::filter(!is.na(value)) %>%
-    dplyr::group_by(Label, visit) %>%
-    dplyr::summarise(
-      p_value = {
-        tab <- table(ARM, value)
-        if (any(tab < 5)) {
-          fisher.test(tab)$p.value
-        } else {
-          chisq.test(tab, correct = FALSE)$p.value
-        }
-      },
-      .groups = "drop"
-    )
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::group_by(Label, visit) %>%
+  dplyr::summarise(
+    p_value = {
+      tab <- table(ARM, value)
+      tryCatch(
+        chisq.test(tab, correct = FALSE)$p.value,
+        error = function(e) NA_real_
+      )
+    },
+    .groups = "drop"
+  )
 
   stats <- long_df %>%
     dplyr::filter(!is.na(value)) %>%
@@ -470,7 +469,11 @@ format_categorical_table <- function(df) {
       CurcuminNEO = sprintf("%d (%.1f%%)", CurcuminNEO_n, CurcuminNEO_pct),
       Methotrexate = sprintf("%d (%.1f%%)", Methotrexate_n, Methotrexate_pct),
       Total = sprintf("%d (%.1f%%)", Total_n, Total_pct),
-      p_value = format_p_fixed(p_value)
+      p_value = ifelse(
+        is.na(p_value),
+        "–",
+        format_p_fixed(p_value)
+        )
     ) %>%
     select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total, p_value)
 }

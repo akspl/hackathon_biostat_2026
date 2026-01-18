@@ -25,6 +25,12 @@ library(flextable)
 ```{r}
 # Functions
 
+tab_counter <- 0
+do_count <- function(what = 'tab'){
+  tab_counter <<- tab_counter + 1
+  tab_counter
+}
+
 get_group_n <- function(df) {
   df %>%
     distinct(USUBJID, ARM) %>%
@@ -610,10 +616,14 @@ data_categorical <- data %>%
 ```
 
 
+## Анализ безопасности
+
+### Таблица `r do_count()`. Бла бла бла
+
 
 ```{r}
 num_stat(
-  df = data,
+  df = data_numeric,
   dict = dict,
   section = "CBC"
 )

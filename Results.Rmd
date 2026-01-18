@@ -143,3 +143,34 @@ t_test_crc <- t.test(data_crc$V0_DAS_DAS28, data_crc$V12_DAS_DAS28, paired = T)
 
 # Анализ вторичных конечных точек
 
+1. Изменение доли пациентов, достигших полного ответа (на основе DAS28 < 2.6)
+```{r}
+ggplot(data_ready) +
+  geom_col(aes(x = ARM, y = V0_DAS_DAS28))
+
+data_ready %>% 
+  filter(ARM == "CurcuminNEO") %>% 
+  filter(V12_DAS_DAS28 < 2.6)
+
+data_ready %>% 
+  filter(ARM == "Methotrexate") %>% 
+  filter(V12_DAS_DAS28 < 2.6)
+
+table_DAS28_crc <- matrix(
+  c(0, 10, 
+    0, 10), nrow = 2, byrow = T,
+dimnames = list(c("0 визит", "12 визит"), c("DAS28 < 2.6", "DAS28 > 2.6")))
+
+table_DAS28_mtx <- matrix(
+  c(0, 13, 
+    5, 8), nrow = 2, byrow = T,
+dimnames = list(c("0 визит", "12 визит"), c("DAS28 < 2.6", "DAS28 > 2.6")))
+
+chisq.test(table_DAS28_mtx)
+
+
+
+```
+
+
+

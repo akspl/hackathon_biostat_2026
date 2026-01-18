@@ -23,30 +23,16 @@ library(flextable)
 ```
 
 ```{r}
-data <- read.csv('team3_ecrf_wide.csv')
-dict <- read_excel("team3_ecrf_data_dictionary.xlsx")
+# Functions
+
+get_group_n <- function(df) {
+  df %>%
+    distinct(USUBJID, ARM) %>%
+    count(ARM) %>%
+    tidyr::pivot_wider(names_from = ARM, values_from = n)
+}
 
 
-```
-
-# 
-
-```{r}
-numeric_vars <- dict %>%
-  filter(Type %in% c("numeric", "integer")) %>%
-  pull(Column)
-
-data_numeric <- data %>%
-  select(USUBJID, ARM, any_of(numeric_vars))
-
-
-data_categorical <- data %>%
-  select(-any_of(numeric_vars))
-
-
-
-```
-```{r}
 
 desc_stats <- function(x) {
   x <- x[!is.na(x)]
@@ -143,14 +129,6 @@ pivot_categorical_section <- function(
     )
 }
 
-
-```
-
-
-
-
-
-```{r}
 desc_numeric_full <- function(x) {
   x <- x[!is.na(x)]
   n <- length(x)
@@ -199,12 +177,6 @@ desc_categorical <- function(x) {
 }
 
 
-
-```
-
-
-
-```{r}
 compare_numeric_by_visit <- function(long_df) {
   
   long_df %>%
@@ -224,24 +196,6 @@ compare_numeric_by_visit <- function(long_df) {
     unnest(c(CurcuminNEO, Methotrexate, Total), names_sep = "_")
 }
 
-compare_categorical_by_visit <- function(long_df) {
-  
-  long_df %>%
-    filter(!is.na(value)) %>%
-    group_by(Label, visit) %>%
-    summarise(
-      CurcuminNEO = list(desc_categorical(value[ARM == "CurcuminNEO"])),
-      Methotrexate = list(desc_categorical(value[ARM == "Methotrexate"])),
-      Total = list(desc_categorical(value)),
-      
-      p_value = tryCatch(
-        chisq.test(table(ARM, value))$p.value,
-        error = function(e) NA_real_
-      ),
-      .groups = "drop"
-    ) %>%
-    unnest(c(CurcuminNEO, Methotrexate, Total), names_sep = "_")
-}
 
 format_numeric_table <- function(df) {
   
@@ -337,21 +291,15 @@ format_numeric_table <- function(df) {
 
 
 
-
-format_categorical_table <- function(df) {
+print_numeric_flextable <- function(df_numeric_formatted, data_raw) {
   
-  df %>%
-    mutate(
-      CurcuminNEO = sprintf("%d (%.1f%%)", CurcuminNEO_n, CurcuminNEO_pct),
-      Methotrexate = sprintf("%d (%.1f%%)", Methotrexate_n, Methotrexate_pct),
-      Total = sprintf("%d (%.1f%%)", Total_n, Total_pct),
-      p_value = format.pval(p_value, digits = 3, eps = 0.001)
-    ) %>%
-    select(Label, visit, CurcuminNEO, Methotrexate, Total, p_value)
-}
-
-print_numeric_flextable <- function(df_numeric_formatted) {
   border_all <- officer::fp_border(color = "black", width = 1)
+
+  group_n <- get_group_n(data_raw)
+  
+  n_cur <- group_n$CurcuminNEO
+  n_mtx <- group_n$Methotrexate
+  n_tot <- n_cur + n_mtx
   
   df_numeric_formatted %>%
     select(
@@ -369,44 +317,244 @@ print_numeric_flextable <- function(df_numeric_formatted) {
       Label = "Показатель",
       visit = "Визит",
       Параметр = "Параметр",
-      CurcuminNEO = "CurcuminNEO",
-      Methotrexate = "Methotrexate",
-      Total = "Всего",
+      CurcuminNEO = paste0("CurcuminNEO (N=", n_cur, ")"),
+      Methotrexate = paste0("Methotrexate (N=", n_mtx, ")"),
+      Total = paste0("Всего (N=", n_tot, ")"),
       p_value = "p"
     ) %>%
     
     merge_v(j = c("Label", "visit", "p_value")) %>%
     
+    align(
+      j = c("CurcuminNEO", "Methotrexate", "Total", "p_value"),
+      align = "center",
+      part = "all"
+    ) %>%
+    
+    font(fontname = "Arial", part = "all") %>%
+    border_outer(border = border_all) %>%
+    border_inner(border = border_all) %>%
+    
+    autofit()
+}
+
+compare_categorical_by_visit <- function(long_df) {
+
+  pvals <- long_df %>%
+    dplyr::filter(!is.na(value)) %>%
+    dplyr::group_by(Label, visit) %>%
+    dplyr::summarise(
+      p_value = {
+        tab <- table(ARM, value)
+        if (any(tab < 5)) {
+          fisher.test(tab)$p.value
+        } else {
+          chisq.test(tab, correct = FALSE)$p.value
+        }
+      },
+      .groups = "drop"
+    )
+
+  stats <- long_df %>%
+    dplyr::filter(!is.na(value)) %>%
+    dplyr::group_by(Label, visit, ARM, value) %>%
+    dplyr::summarise(
+      n = n(),
+      .groups = "drop"
+    ) %>%
+    dplyr::rename(Параметр = value)
+
+  totals <- long_df %>%
+    dplyr::filter(!is.na(value)) %>%
+    dplyr::group_by(Label, visit, ARM) %>%
+    dplyr::summarise(
+      N = n(),
+      .groups = "drop"
+    )
+  
+  stats <- stats %>%
+    dplyr::left_join(totals, by = c("Label", "visit", "ARM")) %>%
+    dplyr::mutate(
+      pct = n / N * 100
+    )
+  
+
+  wide <- stats %>%
+    tidyr::pivot_wider(
+      names_from = ARM,
+      values_from = c(n, pct),
+      names_sep = "_"
+    ) %>%
+    
+
+    dplyr::mutate(
+      dplyr::across(
+        c(n_CurcuminNEO, pct_CurcuminNEO,
+          n_Methotrexate, pct_Methotrexate),
+        ~ tidyr::replace_na(.x, 0)
+      )
+    )
+
+  wide <- wide %>%
+    dplyr::group_by(Label, visit) %>%
+    dplyr::mutate(
+      Total_n = n_CurcuminNEO + n_Methotrexate,
+      Total_pct = Total_n / sum(Total_n) * 100
+    ) %>%
+    dplyr::ungroup()
+  wide %>%
+    dplyr::rename(
+      CurcuminNEO_n = n_CurcuminNEO,
+      CurcuminNEO_pct = pct_CurcuminNEO,
+      Methotrexate_n = n_Methotrexate,
+      Methotrexate_pct = pct_Methotrexate
+    ) %>%
+    dplyr::left_join(pvals, by = c("Label", "visit")) %>%
+    dplyr::select(
+      Label, visit, Параметр,
+      CurcuminNEO_n, CurcuminNEO_pct,
+      Methotrexate_n, Methotrexate_pct,
+      Total_n, Total_pct,
+      p_value
+    )
+}
+
+
+
+format_categorical_table <- function(df) {
+  
+  df %>%
+    mutate(
+      CurcuminNEO = sprintf("%d (%.1f%%)", CurcuminNEO_n, CurcuminNEO_pct),
+      Methotrexate = sprintf("%d (%.1f%%)", Methotrexate_n, Methotrexate_pct),
+      Total = sprintf("%d (%.1f%%)", Total_n, Total_pct),
+      p_value = format.pval(p_value, digits = 3, eps = 0.001)
+    ) %>%
+    select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total, p_value)
+}
+
+
+print_categorical_flextable <- function(df_categorical_formatted, data_raw) {
+  
+  border_all <- officer::fp_border(color = "black", width = 1)
+
+  group_n <- get_group_n(data_raw)
+  
+  n_cur <- group_n$CurcuminNEO
+  n_mtx <- group_n$Methotrexate
+  n_tot <- n_cur + n_mtx
+  
+  df_categorical_formatted %>%
+    flextable() %>%
+    set_header_labels(
+      Label = "Показатель",
+      visit = "Визит",
+      Параметр = "Параметр",
+      CurcuminNEO = paste0("CurcuminNEO (N=", n_cur, ")"),
+      Methotrexate = paste0("Methotrexate (N=", n_mtx, ")"),
+      Total = paste0("Всего (N=", n_tot, ")"),
+      p_value = "p"
+    ) %>%
+    
+
+    merge_v(j = c("Label", "visit", "p_value")) %>%
 
     align(
       j = c("CurcuminNEO", "Methotrexate", "Total", "p_value"),
       align = "center",
       part = "all"
     ) %>%
+    
 
     font(fontname = "Arial", part = "all") %>%
     border_outer(border = border_all) %>%
     border_inner(border = border_all) %>%
+    
     autofit()
 }
 
+num_stat <- function(df, dict, section) {
+  
+  df %>%
+    pivot_numeric_section(dict = dict, section = section) %>%
+    compare_numeric_by_visit() %>%
+    format_numeric_table() %>%
+    print_numeric_flextable(data_raw = df)
+}
+
+cat_stat <- function(df, dict, section) {
+  
+  df %>%
+    pivot_categorical_section(dict = dict, section = section) %>%
+    compare_categorical_by_visit() %>%
+    format_categorical_table() %>%
+    print_categorical_flextable(data_raw = df)
+}
+
+
 
 ```
+
 ```{r}
-cbc_table <-pivot_numeric_section(data, dict, "CBC") %>% 
-  compare_numeric_by_visit()
+data <- read.csv('team3_ecrf_wide.csv')
+dict <- read_excel("team3_ecrf_data_dictionary.xlsx")
 
-vit_table <- pivot_categorical_section(data_categorical, dict, "VIT") %>% 
-  compare_categorical_by_visit()
+
+```
+
+# 
+
+```{r}
+numeric_vars <- dict %>%
+  filter(Type %in% c("numeric", "integer")) %>%
+  pull(Column)
+
+data_numeric <- data %>%
+  select(USUBJID, ARM, any_of(numeric_vars))
+
+
+data_categorical <- data %>%
+  select(-any_of(numeric_vars)) %>% 
+   select(
+    -matches("DAS|PAIN|PASS|DEM|ANT|ECG")
+  ) %>% 
+  mutate(
+    across(
+      where(~ all(.x %in% c(0, 1, NA))),
+      ~ factor(
+        .x,
+        levels = c(0, 1),
+        labels = c("Норма", "Отклонение")
+      )
+    )
+  )
+
+
+
+```
+
+
+
+```{r}
+num_stat(
+  df = data,
+  dict = dict,
+  section = "CBC"
+)
+
 
 ```
 
 ```{r}
-format_numeric_table(cbc_table) %>% 
-  print_numeric_flextable()
+cat_stat(
+  df = data_categorical,
+  dict = dict,
+  section = "VIT"
+)
+
+  
 
 ```
-
 ```{r}
 
 ```

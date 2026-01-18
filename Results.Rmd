@@ -2,12 +2,7 @@
 title: "Хакатон 2026"
 author: "Oksana Plastinina"
 date: "`r Sys.Date()`"
-output: 
-  html_document:
-    number_sections: true
-    code_folding: hide
-    toc: true
-    toc_float: true
+output: officedown::rdocx_document
 ---
 
 ```{r setup, include=FALSE}
@@ -16,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(officedown)
 ```
 
 ```{r}
@@ -32,7 +28,7 @@ data <- data %>%
 # Оценка данных
 
 ```{r}
-skimr::skim(data)
+#skimr::skim(data)
 ```
 
 
@@ -85,5 +81,65 @@ data_ready <- check_visits(data_cleaned)
   
 ```
 
+```{r}
+data_cleaned %>% 
+  mutate("TS" = 1) -> data_cleaned
 
+left_join(data, data_cleaned) -> data_with_flag
+
+data_with_flag %>% 
+  relocate(TS, .before = everything()) %>% 
+  mutate(TS = ifelse(is.na(TS), 0, 1)) -> data_with_flag
+```
+
+
+# Анализ первичной конечной точки
+
+На основании первичной конечной точки можно сформулировать тестируемые гипотезы:
+
+**Нулевая гипотеза:** Разница средних между группами КуркуминаНЕО и метотрексата меньше или равна порогу не меньшей эффективности. (то есть КуркуминНЕО имеет такой же или даже более выраженный эффект)
+
+**Альтернативная гипотеза:** Разница средних между группами КуркуминаНЕО и метотрексата больше порога не меньшей эффективности. (то есть КуркуминНЕО имеет клинически значимо меньший эффект, чем метотрексат)
+
+$Н0: \Delta DAS28_{curcumin} - \Delta DAS28_{methotrexate}  \leq  \delta$
+
+$HA: \Delta DAS28_{curcumin}  - \Delta DAS28_{methotrexate}   >\delta$
+
+Где $\delta$ - порог не меньшей эффективности, равный -0.6 баллов по шкале DAS28,
+$\Delta$ - разница между баллами за 12 и 0 визиты у пациента 
+
+
+```{r}
+data_ready %>% 
+  mutate("delta_DAS28" = V12_DAS_DAS28 - V0_DAS_DAS28) -> data_ready  # чем меньше, тем лучше
+
+ggplot(data_ready) +
+  geom_boxplot(aes(x = ARM, y = delta_DAS28, fill = ARM))+
+  theme_minimal()
+
+```
+
+```{r}
+t_test_pkt <- t.test(delta_DAS28~ARM, data = data_ready, conf.level = 0.975, alternative = "greater", mu = -0.6)
+```
+
+По результатам выполнения функции средняя разница между группами (КуркуминНЕО - Метотрексат) составила 0.704 балла по шкале DAS28 95%CI [0.4419774 Inf] (р-value = 5.291e-10), что значительно превышает порог не меньшей эффективности, равный -0.6 баллов по шкале DAS28, следовательно мы отвергаем нулевую гипотезу о том, что КуркуминНЕО имеет такой же или более выраженный эффект, чем метотрексат. 
+
+
+Дополнительно эффект каждого препарата в отдельности
+```{r}
+data_ready %>% 
+  filter(ARM == "Methotrexate") -> data_mtx
+
+
+t_test_mtx <- t.test(data_mtx$V0_DAS_DAS28, data_mtx$V12_DAS_DAS28, paired = TRUE)
+
+data_ready %>% 
+  filter(ARM == "CurcuminNEO") -> data_crc
+
+t_test_crc <- t.test(data_crc$V0_DAS_DAS28, data_crc$V12_DAS_DAS28, paired = T)
+
+```
+
+# Анализ вторичных конечных точек
 

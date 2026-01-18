@@ -26,16 +26,6 @@ data <- read.csv('team3_ecrf_wide.csv')
 
 ```{r}
 skimr::skim(data)
-
-summary(data)
-
-min(data$V0_DEM_AGE)
-
-ggplot(data)+
-  geom_histogram(aes(x = V0_DEM_AGE))
-
-data %>% 
-  count(V1_VIT_TEMP_ABN)
 ```
 
 

@@ -22,16 +22,61 @@ library(tidyverse)
 data <- read.csv('team3_ecrf_wide.csv')
 ```
 
-```{r}
-data <- data %>% 
-  mutate(
-    across(c(ARM, V0_DEM_SEX, contains('ABN'), contains('PASS')), as.factor)
-  )
-```
-
-# 
+# Оценка данных
 
 ```{r}
-
+skimr::skim(data)
 ```
+
+
+# Очистка данных
+
+```{r}
+# проверка на соответствие критериям включения и невключения
+data %>% 
+  filter(V0_DEM_AGE <= 65 & V0_DEM_AGE >= 18) %>% 
+  filter(V0_DAS_DAS28 > 3.2) %>% 
+  filter(V0_BIO_ALT < 250 & V0_BIO_AST < 250) %>% 
+  filter(V0_BIO_CREAT < 5) %>% 
+  filter(V0_CBC_HGB > 8) %>% 
+  filter(V0_CBC_WBC > 4 & V0_CBC_PLT > 150) %>% 
+  filter(V0_VIT_BP_ABN == 0) %>% 
+  filter(V0_BIO_CRP < 80)-> data_cleaned
+
+
+ check_visits <- function(data) {
+  
+  for(v in 0:12) {
+    hgb_col <- paste0("V", v, "_CBC_HGB")
+    wbc_col <- paste0("V", v, "_CBC_WBC")
+    plt_col <- paste0("V", v, "_CBC_PLT")
+    alt_col <- paste0("V", v, "_BIO_ALT")
+    ast_col <- paste0("V", v, "_BIO_AST")
+    creat_col <- paste0("V", v, "_BIO_CREAT")
+    crp_col <- paste0("V", v, "_BIO_CRP")
+    bp_col <- paste0("V", v, "_VIT_BP_ABN")
+    
+   {
+      data <- data %>%
+        filter(
+          .data[[hgb_col]] >= 8,
+          .data[[wbc_col]] >= 4,
+          .data[[plt_col]] >= 150,
+          .data[[alt_col]] < 250,
+          .data[[ast_col]] < 250,
+          .data[[creat_col]] < 5,
+          .data[[crp_col]] < 100,
+        )
+      
+      cat("После визита V", v, " осталось пациентов: ", nrow(data), "\n")
+    }
+  }
+  return(data)
+}
+data_ready <- check_visits(data_cleaned)
+
+  
+```
+
+
 

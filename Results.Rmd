@@ -19,7 +19,24 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 library(flextable)
+library(ggsignif)
+```
 
+```{r}
+#Создание темы графиков для документа
+thememine <- theme(
+  plot.title = element_text(size = 15, hjust = 0.5),
+  plot.subtitle = element_text(size = 16, hjust = 0.5),
+  axis.title = element_text(size = 12),
+  axis.text = element_text(size = 9, colour = 'grey10'),
+  panel.background = element_rect(fill = 'white'),
+  panel.grid = element_line(colour = 'grey90')
+)
+
+theme_set(thememine)
+
+ARMvalues <- c('CurcuminNEO' = 'sienna3',
+               'Methotrexate' = 'seagreen' )
 ```
 
 ```{r}
@@ -683,9 +700,19 @@ $\Delta$ - разница между баллами за 12 и 0 визиты у
 data_ready %>% 
   mutate("delta_DAS28" = V12_DAS_DAS28 - V0_DAS_DAS28) -> data_ready  # чем меньше, тем лучше
 
-ggplot(data_ready) +
-  geom_boxplot(aes(x = ARM, y = delta_DAS28, fill = ARM))+
-  theme_minimal()
+ggplot(data_ready, aes(x = ARM, y = delta_DAS28)) +
+  geom_boxplot(aes(fill = ARM))+
+  geom_signif(
+    comparisons = list(c('CurcuminNEO', 'Methotrexate')),
+    test = 't.test',
+    test.args = list(
+      conf.level = 0.975, 
+      alternative = "greater", 
+      mu = -0.6
+    )) +
+  scale_fill_manual(
+    values = ARMvalues
+  )
 
 t_test_pkt <- t.test(delta_DAS28~ARM, data = data_ready, conf.level = 0.975, alternative = "greater", mu = -0.6)
 ```
@@ -694,10 +721,58 @@ t_test_pkt <- t.test(delta_DAS28~ARM, data = data_ready, conf.level = 0.975, alt
 
 ### ВКТ
 
+#### Оценка разности средних оценок интенсивности болей в суставах по 100 мм ВАШ в двух граппах
+
+Для проверки вторичной конечной точки "Изменение интенсивности болей в суставах по 100 мм ВАШ" сформулировали следующие гипотезы:
+
+Нулевая гипотеза: Разница средних между группами “Куркумин НЕО” и “Метотрексат” меньше или равна 0. Т.е. “Куркумин НЕО” имеет такой же или менее выраженный эффект.
+
+Альтернативная гипотеза: Разница средних между группами “Куркумин НЕО” и метотрексата больше 0. Т.е. есть “Куркумин НЕО” имеет статистически значимо больший эффект в сравнении с “Метотрексат”.
+
+$Н0: \Delta VAS_{curcumin} - \Delta VAS_{methotrexate}  \leq  0$
+
+$HA: \Delta VAS_{curcumin}  - \Delta VAS_{methotrexate}   > 0$
+
 ```{r}
+
+#df c переменной разности оценок VAS 
+data_ready <- data_ready %>% 
+  mutate(
+    dif_VAS = V12_PAIN_VAS - V7_PAIN_VAS,
+    
+    DAS28min_V12 = case_when(V12_DAS_DAS28 < 2.6 ~ '<2.6',
+                             V12_DAS_DAS28 >= 2.6 ~ '>=2.6')
+  ) 
+
+#Извлекаем векторы разницы средних соотвествующих препаратов
+VAS_dif_Curcumin <- data_ready %>% filter(ARM == 'CurcuminNEO') %>% pull(dif_VAS)
+VAS_dif_Methotrexate <- data_ready %>% filter(ARM == 'Methotrexate') %>% pull(dif_VAS)
+
+#Т-тест
+test_BP_pair <- t.test(VAS_dif_Curcumin, VAS_dif_Methotrexate,
+                       paired = F,
+                       alternative = "less", 
+                       conf.level = 0.975)
+data_ready %>% 
+  ggplot(aes(x = ARM, y = dif_VAS, fill = ARM)) +
+  geom_boxplot()+
+  geom_signif(
+    comparisons = list(c('CurcuminNEO', 'Methotrexate')),
+    test = 't.test',
+    test.args = list(
+      paired = F,
+      alternative = "less", 
+      conf.level = 0.975
+    )) +
+  scale_fill_manual(
+    values = ARMvalues
+  )
 
 ```
 
+Полученное p-значение больше 0.05 (p = 0.8748), что НЕ дает нам возможность опровергнуть нулевую гипотезу о равенстве нулю разницы средених оценко по шкале VAS. 97,5% ДИ [inf, 12.91] разницы средних включает 0.
+
+Таким образом, согласно результатам одностороннего Т-теста, мы не можем опровергнуть нулевую гипотезу о отсутвии большей эффективности в снижении боли при использовании препатара “Куркумин НЕО” по сравнению с “Метотрексат”.
 
 ## Исходное состояние
 

@@ -1,6 +1,6 @@
 ---
 title: "Хакатон 2026"
-author: "Oksana Plastinina"
+author: "Oksana Plastinina, Anna Kalinina"
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -84,6 +84,9 @@ data_ready <- check_visits(data_cleaned)
 
   
 ```
+
+
+
 
 
 

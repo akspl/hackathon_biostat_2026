@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(janitor)
+library(flextable)
 
 ```
 
@@ -148,9 +149,239 @@ pivot_categorical_section <- function(
 
 
 
+
 ```{r}
-pivot_numeric_section(data, dict, "CBC")
-pivot_categorical_section(data_categorical, dict, "VIT")
+desc_numeric_full <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  
+  if (n == 0) {
+    return(tibble(
+      n = 0,
+      mean = NA_real_,
+      lcl = NA_real_,
+      ucl = NA_real_,
+      sd = NA_real_,
+      cv = NA_real_,
+      median = NA_real_,
+      iqr = NA_real_,
+      min = NA_real_,
+      max = NA_real_
+    ))
+  }
+  
+  se <- sd(x) / sqrt(n)
+  ci <- qt(0.975, df = n - 1) * se
+  
+  tibble(
+    n = n,
+    mean = mean(x),
+    lcl = mean(x) - ci,
+    ucl = mean(x) + ci,
+    sd = sd(x),
+    cv = sd(x) / mean(x) * 100,
+    median = median(x),
+    iqr = IQR(x),
+    min = min(x),
+    max = max(x)
+  )
+}
+
+desc_categorical <- function(x) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  n1 <- sum(x == 1, na.rm = TRUE)
+  
+  tibble(
+    n = n1,
+    pct = ifelse(n == 0, NA_real_, n1 / n * 100)
+  )
+}
+
+
+
+```
+
+
+
+```{r}
+compare_numeric_by_visit <- function(long_df) {
+  
+  long_df %>%
+    filter(!is.na(value)) %>%
+    group_by(Label, visit) %>%
+    summarise(
+      CurcuminNEO = list(desc_numeric_full(value[ARM == "CurcuminNEO"])),
+      Methotrexate = list(desc_numeric_full(value[ARM == "Methotrexate"])),
+      Total = list(desc_numeric_full(value)),
+      
+      p_value = tryCatch(
+        t.test(value ~ ARM)$p.value,
+        error = function(e) NA_real_
+      ),
+      .groups = "drop"
+    ) %>%
+    unnest(c(CurcuminNEO, Methotrexate, Total), names_sep = "_")
+}
+
+compare_categorical_by_visit <- function(long_df) {
+  
+  long_df %>%
+    filter(!is.na(value)) %>%
+    group_by(Label, visit) %>%
+    summarise(
+      CurcuminNEO = list(desc_categorical(value[ARM == "CurcuminNEO"])),
+      Methotrexate = list(desc_categorical(value[ARM == "Methotrexate"])),
+      Total = list(desc_categorical(value)),
+      
+      p_value = tryCatch(
+        chisq.test(table(ARM, value))$p.value,
+        error = function(e) NA_real_
+      ),
+      .groups = "drop"
+    ) %>%
+    unnest(c(CurcuminNEO, Methotrexate, Total), names_sep = "_")
+}
+
+format_numeric_table <- function(df) {
+  
+  df_fmt <- df %>%
+    mutate(
+
+      CurcuminNEO = as.character(CurcuminNEO_n),
+      Methotrexate = as.character(Methotrexate_n),
+      Total = as.character(Total_n)
+    ) %>%
+    select(Label, visit, CurcuminNEO, Methotrexate, Total) %>%
+    mutate(Параметр = "N")
+  
+  df_meansd <- df %>%
+    mutate(
+      CurcuminNEO = sprintf("%.2f (%.2f)", CurcuminNEO_mean, CurcuminNEO_sd),
+      Methotrexate = sprintf("%.2f (%.2f)", Methotrexate_mean, Methotrexate_sd),
+      Total = sprintf("%.2f (%.2f)", Total_mean, Total_sd),
+      Параметр = "Mean (SD)"
+    ) %>%
+    select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total)
+  
+  df_median <- df %>%
+    mutate(
+      CurcuminNEO = sprintf("%.2f", CurcuminNEO_median),
+      Methotrexate = sprintf("%.2f", Methotrexate_median),
+      Total = sprintf("%.2f", Total_median),
+      Параметр = "Median"
+    ) %>%
+    select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total)
+  
+  df_iqr <- df %>%
+    mutate(
+      CurcuminNEO = sprintf("%.2f", CurcuminNEO_iqr),
+      Methotrexate = sprintf("%.2f", Methotrexate_iqr),
+      Total = sprintf("%.2f", Total_iqr),
+      Параметр = "IQR"
+    ) %>%
+    select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total)
+  
+  df_minmax <- df %>%
+    mutate(
+      CurcuminNEO = sprintf("%.2f–%.2f", CurcuminNEO_min, CurcuminNEO_max),
+      Methotrexate = sprintf("%.2f–%.2f", Methotrexate_min, Methotrexate_max),
+      Total = sprintf("%.2f–%.2f", Total_min, Total_max),
+      Параметр = "Min–Max"
+    ) %>%
+    select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total)
+  
+  bind_rows(df_fmt, df_meansd, df_median, df_iqr, df_minmax) %>%
+  left_join(
+    df %>% select(Label, visit, p_value),
+    by = c("Label", "visit")
+  ) %>%
+  mutate(
+    p_value = format.pval(p_value, digits = 3, eps = 0.001)
+  ) %>%
+  arrange(
+    Label,
+    visit,
+    factor(
+      Параметр,
+      levels = c("N", "Mean (SD)", "Median", "IQR", "Min–Max")
+    )
+  )
+
+}
+
+
+
+format_categorical_table <- function(df) {
+  
+  df %>%
+    mutate(
+      CurcuminNEO = sprintf("%d (%.1f%%)", CurcuminNEO_n, CurcuminNEO_pct),
+      Methotrexate = sprintf("%d (%.1f%%)", Methotrexate_n, Methotrexate_pct),
+      Total = sprintf("%d (%.1f%%)", Total_n, Total_pct),
+      p_value = format.pval(p_value, digits = 3, eps = 0.001)
+    ) %>%
+    select(Label, visit, CurcuminNEO, Methotrexate, Total, p_value)
+}
+
+print_numeric_flextable <- function(df_numeric_formatted) {
+  border_all <- officer::fp_border(color = "black", width = 1)
+  
+  df_numeric_formatted %>%
+    select(
+      Label,
+      visit,
+      Параметр,
+      CurcuminNEO,
+      Methotrexate,
+      Total,
+      p_value
+    ) %>%
+    flextable() %>%
+
+    set_header_labels(
+      Label = "Показатель",
+      visit = "Визит",
+      Параметр = "Параметр",
+      CurcuminNEO = "CurcuminNEO",
+      Methotrexate = "Methotrexate",
+      Total = "Всего",
+      p_value = "p"
+    ) %>%
+    
+    merge_v(j = c("Label", "visit", "p_value")) %>%
+    
+
+    align(
+      j = c("CurcuminNEO", "Methotrexate", "Total", "p_value"),
+      align = "center",
+      part = "all"
+    ) %>%
+
+    font(fontname = "Arial", part = "all") %>%
+    border_outer(border = border_all) %>%
+    border_inner(border = border_all) %>%
+    autofit()
+}
+
+
+```
+```{r}
+cbc_table <-pivot_numeric_section(data, dict, "CBC") %>% 
+  compare_numeric_by_visit()
+
+vit_table <- pivot_categorical_section(data_categorical, dict, "VIT") %>% 
+  compare_categorical_by_visit()
+
+```
+
+```{r}
+format_numeric_table(cbc_table) %>% 
+  print_numeric_flextable()
+
+```
+
+```{r}
 
 ```
 

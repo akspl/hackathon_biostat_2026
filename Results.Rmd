@@ -16,14 +16,35 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(readxl)
+library(janitor)
+
 ```
 
 ```{r}
 data <- read.csv('team3_ecrf_wide.csv')
+dict <- read_excel("team3_ecrf_data_dictionary.xlsx")
+
+
 ```
 
 # 
 
+```{r}
+numeric_vars <- dict %>%
+  filter(Type %in% c("numeric", "integer")) %>%
+  pull(Column)
+
+data_numeric <- data %>%
+  select(USUBJID, ARM, any_of(numeric_vars))
+
+
+data_categorical <- data %>%
+  select(-any_of(numeric_vars))
+
+
+
+```
 ```{r}
 
 ```

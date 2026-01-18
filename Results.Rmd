@@ -47,5 +47,110 @@ data_categorical <- data %>%
 ```
 ```{r}
 
+desc_stats <- function(x) {
+  x <- x[!is.na(x)]
+  
+  if (length(x) == 0) {
+    return(tibble(
+      mean_sd = NA_character_,
+      median  = NA_real_,
+      min     = NA_real_,
+      max     = NA_real_,
+      q1      = NA_real_,
+      q3      = NA_real_
+    ))
+  }
+  
+  tibble(
+    mean_sd = sprintf("%.2f (%.2f)", mean(x), sd(x)),
+    median  = median(x),
+    min     = min(x),
+    max     = max(x),
+    q1      = quantile(x, 0.25),
+    q3      = quantile(x, 0.75)
+  )
+}
+
+
+pivot_numeric_section <- function(
+  data_numeric,
+  dict,
+  section
+) {
+  
+  vars_section <- dict %>%
+    dplyr::filter(
+      Type %in% c("numeric", "integer"),
+      stringr::str_detect(Column, paste0("_", section, "_"))
+    ) %>%
+    dplyr::pull(Column)
+  
+  data_numeric %>%
+    dplyr::select(USUBJID, ARM, dplyr::any_of(vars_section)) %>%
+    tidyr::pivot_longer(
+      cols = dplyr::any_of(vars_section),
+      names_to = "Column",
+      values_to = "value"
+    ) %>%
+    dplyr::mutate(
+      Column_raw = Column  
+    ) %>%
+    tidyr::separate(
+      Column,
+      into = c("visit", "domain", "parameter"),
+      sep = "_",
+      extra = "merge"
+    ) %>%
+    dplyr::left_join(
+      dict,
+      by = c("Column_raw" = "Column")
+    )
+}
+
+pivot_categorical_section <- function(
+  data_categorical,
+  dict,
+  section
+) {
+  
+  vars_section <- dict %>%
+    dplyr::filter(
+      !Type %in% c("numeric", "integer"),
+      stringr::str_detect(Column, paste0("_", section, "_"))
+    ) %>%
+    dplyr::pull(Column)
+  
+  data_categorical %>%
+    dplyr::select(USUBJID, ARM, dplyr::any_of(vars_section)) %>%
+    tidyr::pivot_longer(
+      cols = dplyr::any_of(vars_section),
+      names_to = "Column",
+      values_to = "value"
+    ) %>%
+    dplyr::mutate(
+      Column_raw = Column
+    ) %>%
+    tidyr::separate(
+      Column,
+      into = c("visit", "domain", "parameter"),
+      sep = "_",
+      extra = "merge"
+    ) %>%
+    dplyr::left_join(
+      dict,
+      by = c("Column_raw" = "Column")
+    )
+}
+
+
+```
+
+
+
+
+```{r}
+pivot_numeric_section(data, dict, "CBC")
+pivot_categorical_section(data_categorical, dict, "VIT")
+
 ```
 

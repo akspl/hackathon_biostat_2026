@@ -1,6 +1,6 @@
 ---
 title: "Хакатон 2026"
-author: "Oksana Plastinina"
+author: "Oksana Plastinina, Anna Kalinina"
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -9,7 +9,6 @@ output:
     toc: true
     toc_float: true
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```

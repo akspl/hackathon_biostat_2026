@@ -625,8 +625,10 @@ data %>%
 }
 data_ready <- check_visits(data_cleaned)
 
-  
+# write_rds(data_ready, 'team3_ecrf_wide.rds')
+
 ```
+
 ```{r}
 data_cleaned %>% 
   mutate("TS" = 1) -> data_cleaned

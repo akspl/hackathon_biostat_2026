@@ -31,6 +31,18 @@ do_count <- function(what = 'tab'){
   tab_counter
 }
 
+format_p_fixed <- function(p) {
+  ifelse(
+    is.na(p),
+    NA_character_,
+    ifelse(
+      p < 0.001,
+      "<0.001",
+      sprintf("%.3f", p)
+    )
+  )
+}
+
 get_group_n <- function(df) {
   df %>%
     distinct(USUBJID, ARM) %>%
@@ -280,7 +292,7 @@ format_numeric_table <- function(df) {
     df_median, df_iqr, df_minmax
   ) %>%
     mutate(
-      p_value = format.pval(p_value, digits = 3, eps = 0.001)
+      p_value = format_p_fixed(p_value)
     ) %>%
     arrange(
       Label,
@@ -456,7 +468,7 @@ format_categorical_table <- function(df) {
       CurcuminNEO = sprintf("%d (%.1f%%)", CurcuminNEO_n, CurcuminNEO_pct),
       Methotrexate = sprintf("%d (%.1f%%)", Methotrexate_n, Methotrexate_pct),
       Total = sprintf("%d (%.1f%%)", Total_n, Total_pct),
-      p_value = format.pval(p_value, digits = 3, eps = 0.001)
+      p_value = format_p_fixed(p_value)
     ) %>%
     select(Label, visit, Параметр, CurcuminNEO, Methotrexate, Total, p_value)
 }
@@ -730,4 +742,3 @@ num_stat(
 
 
 ```
-

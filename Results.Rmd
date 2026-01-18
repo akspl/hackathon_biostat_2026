@@ -425,6 +425,28 @@ compare_categorical_by_visit <- function(long_df) {
     )
 }
 
+merge_categorical_groups <- function(df) {
+  
+  df %>%
+    group_by(Label, visit, Параметр) %>%
+    summarise(
+      CurcuminNEO_n = sum(CurcuminNEO_n, na.rm = TRUE),
+      Methotrexate_n = sum(Methotrexate_n, na.rm = TRUE),
+      
+      Total_n = CurcuminNEO_n + Methotrexate_n,
+      
+      p_value = first(p_value),
+      .groups = "drop"
+    ) %>%
+    
+    group_by(Label, visit) %>%
+    mutate(
+      Total_pct = Total_n / sum(Total_n) * 100,
+      CurcuminNEO_pct = CurcuminNEO_n / sum(CurcuminNEO_n) * 100,
+      Methotrexate_pct = Methotrexate_n / sum(Methotrexate_n) * 100
+    ) %>%
+    ungroup()
+}
 
 
 format_categorical_table <- function(df) {
@@ -493,6 +515,7 @@ cat_stat <- function(df, dict, section) {
   df %>%
     pivot_categorical_section(dict = dict, section = section) %>%
     compare_categorical_by_visit() %>%
+    merge_categorical_groups() %>% 
     format_categorical_table() %>%
     print_categorical_flextable(data_raw = df)
 }
@@ -584,7 +607,7 @@ data <- data_with_flag %>%
   filter(TS ==1)
 ```
 
-# 
+
 
 ```{r}
 numeric_vars <- dict %>%
@@ -598,7 +621,7 @@ data_numeric <- data %>%
 data_categorical <- data %>%
   select(-any_of(numeric_vars)) %>% 
    select(
-    -matches("DAS|PAIN|PASS|DEM|ANT|ECG")
+    -matches("DAS|PAIN|PASS|DEM|ANT")
   ) %>% 
   mutate(
     across(
@@ -615,10 +638,61 @@ data_categorical <- data %>%
 
 ```
 
+## Исходное состояние
+
+### Таблица `r do_count()`. Демография
+```{r}
+num_stat(
+  df = data_numeric,
+  dict = dict,
+  section = "DEM"
+)
+
+cat_stat(
+  df = data,
+  dict = dict,
+  section = "DEM"
+)
+
+```
+## Таблица `r do_count()`. Антропометрия
+
+```{r}
+
+num_stat(
+  df = data_numeric,
+  dict = dict,
+  section = "ANT"
+)
+```
+
+## Таблица `r do_count()`. Электрокардиограция в 12 стандартных отведениях, соответствие референсным значениями
+
+```{r}
+cat_stat(
+  df = data_categorical,
+  dict = dict,
+  section = "ECG"
+)
+```
+
 
 ## Анализ безопасности
 
-### Таблица `r do_count()`. Бла бла бла
+
+### Таблица `r do_count()`. Оценка жизненно-важных показателей
+```{r}
+cat_stat(
+  df = data_categorical,
+  dict = dict,
+  section = "VIT"
+)
+
+  
+
+```
+
+### Таблица `r do_count()`. Клинический анализ крови
 
 
 ```{r}
@@ -631,17 +705,29 @@ num_stat(
 
 ```
 
+
+### Таблица `r do_count()`. Биохимический анализ крови
+
+
 ```{r}
-cat_stat(
-  df = data_categorical,
+num_stat(
+  df = data_numeric,
   dict = dict,
-  section = "VIT"
+  section = "BIO"
 )
 
-  
 
 ```
+### Таблица `r do_count()`. Общий анализ мочи
+
+
 ```{r}
+num_stat(
+  df = data_numeric,
+  dict = dict,
+  section = "URN"
+)
+
 
 ```
 

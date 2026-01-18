@@ -783,13 +783,13 @@ data_ready %>%
 Согласно полученному критерию Хи-квадрат для проверки независимости, терапия и достижение полного ответа на лечение не имеют статистически значимую взаимосвязь по уровню значимости 0.05 (p = 0.0878, X-квадрат = 2.91).
 
 ```{r warning=FALSE}
-tableV12 <- table(dataanalisis$ARM, dataanalisis$DAS28min_V12)
+tableV12 <- table(data_ready$ARM, data_ready$DAS28min_V12)
 
 chiDAS28 <- chisq.test(tableV12)
 ```
 
 ```{r}
-dataanalisis %>%
+data_ready %>%
   mutate(
     ARM = case_when(
       ARM == 'Methotrexate' ~ "Метотрексат",
@@ -813,7 +813,7 @@ dataanalisis %>%
 В результате анализа количества пациентов, достигнувших приемлемого для себя состояния симптомов (PASS = 0), не выявили статистически значимых различий между группами терапии. Согласно полученному критерию Хи-квадрат для проверки независимости, терапия и достижение приемлемого для себя состояния симптомов не имеют статистически значимой взаимосвязи по уровню значимости 0.05 (p = 1, X-квадрат = 0).
 
 ```{r}
-dataanalisis %>%
+data_ready %>%
   mutate(
     ARM = case_when(
       ARM == 'Methotrexate' ~ "Метотрексат",
@@ -833,7 +833,7 @@ dataanalisis %>%
 ```
 
 ```{r warning=FALSE}
-tablePASS_V12 <- table(dataanalisis$ARM, dataanalisis$V12_PASS_PASS)
+tablePASS_V12 <- table(data_ready$ARM, data_ready$V12_PASS_PASS)
 
 chiPASS <-chisq.test(tablePASS_V12)
 ```

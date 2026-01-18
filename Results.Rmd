@@ -1,12 +1,15 @@
 ---
 title: "Проспективное, одноцентровое, открытое, рандомизированное, клиническое исследование в параллельных группах, по сравнительной оценке, эффективности и безопасности биологически активной добавки “Куркумин НЕО”, 100 мг для перорального применения в сравнении со стандартной терапией “Метотрексат”, 7,5 мг для лечения при ревматоидном артрите (РА)."
 date: "`r Sys.Date()`"
-output: 
+output:
+  html_document:
+    number_sections: true
+    code_folding: hide
+    toc: true
+    toc_float: true
   word_document:
     toc: true
     reference_docx: template.docx
-    
-
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
@@ -38,6 +41,9 @@ theme_set(thememine)
 
 ARMvalues <- c('CurcuminNEO' = 'sienna3',
                'Methotrexate' = 'seagreen' )
+
+ARMlabels <- c('CurcuminNEO' = '"Куркумин НЕО"',
+               'Methotrexate' = '"Метотрексат"' )
 ```
 
 ```{r}
@@ -687,9 +693,9 @@ data_categorical <- data %>%
 ### ПКТ
 На основании первичной конечной точки можно сформулировать тестируемые гипотезы:
 
-Нулевая гипотеза: Разница средних между группами КуркуминаНЕО и метотрексата меньше или равна порогу не меньшей эффективности. (то есть КуркуминНЕО имеет такой же или даже более выраженный эффект)
+Нулевая гипотеза: Разница средних между группами "Куркумин НЕО" и "Метотрексат" меньше или равна порогу не меньшей эффективности. (то есть "Куркумин НЕО" имеет такой же или даже более выраженный эффект)
 
-Альтернативная гипотеза: Разница средних между группами КуркуминаНЕО и метотрексата больше порога не меньшей эффективности. (то есть КуркуминНЕО имеет клинически значимо меньший эффект, чем метотрексат)
+Альтернативная гипотеза: Разница средних между группами "Куркумин НЕО" и "Метотрексат" больше порога не меньшей эффективности. (то есть "Куркумин НЕО" имеет клинически значимо меньший эффект, чем "Метотрексат")
 
 $Н0: \Delta DAS28_{curcumin} - \Delta DAS28_{methotrexate}  \leq  \delta$
 
@@ -699,7 +705,7 @@ $HA: \Delta DAS28_{curcumin}  - \Delta DAS28_{methotrexate}   >\delta$
 $\Delta$ - разница между баллами за 12 и 0 визиты у пациента
 
 
-```{r}
+```{r fig.height=5, fig.width=6}
 data_ready %>% 
   mutate("delta_DAS28" = V12_DAS_DAS28 - V0_DAS_DAS28) -> data_ready  # чем меньше, тем лучше
 
@@ -713,8 +719,20 @@ ggplot(data_ready, aes(x = ARM, y = delta_DAS28)) +
       alternative = "greater", 
       mu = -0.6
     )) +
+  labs(
+    title = 'Сравнение средней разницы оценки по шкале DAS28\n по граппам терапии',
+    subtitle = 'Сравнение по терапии: Т-тест',
+    x = NULL,
+    y = "Разница оценки по шкале DAS28\n между 12 и 0 визитом"
+  )+
   scale_fill_manual(
     values = ARMvalues
+  )+
+  scale_x_discrete(labels = ARMlabels)+
+  theme(
+    legend.position = 'none',
+    plot.subtitle = element_text(hjust = 0.5, size = 12, colour = 'grey20'),
+    axis.text.x = element_text(size = 12)
   )
 
 t_test_pkt <- t.test(delta_DAS28~ARM, data = data_ready, conf.level = 0.975, alternative = "greater", mu = -0.6)
@@ -736,7 +754,7 @@ $Н0: \Delta VAS_{curcumin} - \Delta VAS_{methotrexate}  \leq  0$
 
 $HA: \Delta VAS_{curcumin}  - \Delta VAS_{methotrexate}   > 0$
 
-```{r}
+```{r fig.height=5, fig.width=6}
 
 #df c переменной разности оценок VAS 
 data_ready <- data_ready %>% 
@@ -767,8 +785,20 @@ data_ready %>%
       alternative = "less", 
       conf.level = 0.975
     )) +
+  labs(
+    title = 'Сравнение средней разницы оценки по шкале VAS\n по граппам терапии',
+    subtitle = 'Сравнение по терапии: Т-тест',
+    x = NULL,
+    y = "Разница оценки по шкале VAS\n между 12 и 7 визитом"
+  )+
   scale_fill_manual(
     values = ARMvalues
+  )+
+  scale_x_discrete(labels = ARMlabels)+
+  theme(
+    legend.position = 'none',
+    plot.subtitle = element_text(hjust = 0.5, size = 12, colour = 'grey20'),
+    axis.text.x = element_text(size = 12)
   )
 
 ```
@@ -788,7 +818,8 @@ tableV12 <- table(data_ready$ARM, data_ready$DAS28min_V12)
 
 chiDAS28 <- chisq.test(tableV12)
 ```
-**Отношение шансов** между группами КуркуминаНЕО и Метотрексата равно нулю, так как ни один из пациентов в группе КуркуминаНЕО не достиг полного ответа
+
+**Отношение шансов** между группами "Куркумин НЕО" и “Метотрексат” равно нулю, так как ни один из пациентов в группе "Куркумин НЕО" не достиг полного ответа.
 
 ```{r}
 data_ready %>%

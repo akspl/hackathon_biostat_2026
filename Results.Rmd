@@ -608,7 +608,7 @@ data %>%
   }
   return(data)
 }
-# data_ready <- check_visits(data_cleaned)
+data_ready <- check_visits(data_cleaned)
 
   
 ```
@@ -657,11 +657,42 @@ data_categorical <- data %>%
 
 ```
 
+
 # Програмное обеспечение 
 
 Анализ данных выполнен в программе RStudio версии `r rstudioapi::versionInfo()$version` с использованием языка `r version$version.string`
 
 # Статистический анализ
+
+## Анализ эффективности
+
+### ПКТ
+
+Гипотеза:
+$$
+Н0: \Delta DAS28_{curcumin} - \Delta DAS28_{methotrexate}  \leq  \delta\\
+HA: \Delta DAS28_{curcumin}  - \Delta DAS28_{methotrexate}   >\delta
+$$
+Где $\delta$ - порог не меньшей эффективности, равный -0.6 баллов по шкале DAS28
+
+
+```{r}
+data_ready %>% 
+  mutate("delta_DAS28" = V12_DAS_DAS28 - V0_DAS_DAS28) -> data_ready  # чем меньше, тем лучше
+
+ggplot(data_ready) +
+  geom_boxplot(aes(x = ARM, y = delta_DAS28, fill = ARM))+
+  theme_minimal()
+
+t_test_pkt <- t.test(delta_DAS28~ARM, data = data_ready, conf.level = 0.975, alternative = "greater", mu = -0.6)
+```
+
+### ВКТ
+
+```{r}
+
+```
+
 
 ## Исходное состояние
 
